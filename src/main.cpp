@@ -5,7 +5,12 @@
 
 #include <cstdint>
 
-// Model -> Camera
+
+// #########################
+// ## Geometry processing ##
+// #########################
+
+// Model -> Camera matrix
 Eigen::Matrix4d model_camera {
     {1, 0, 0,  -2},
     {0, 1, 0,  -2},
@@ -13,7 +18,7 @@ Eigen::Matrix4d model_camera {
     {0, 0, 0,  1}
 };
 
-// Projection
+// Projection matrix
 double l = -1, r = 1;
 double b = -1, t = 1;
 double n = 1, f = 10;
@@ -24,6 +29,10 @@ Eigen::Matrix4d proj {
     {        0,         0,           -1,             1}
 };
 
+
+// ###################
+// ## Rasterisation ##
+// ###################
 double edge(Eigen::Vector4d v0, Eigen::Vector4d v1, Eigen::Vector4d v2) {
     return (v1-v0)[0] * (v2-v0)[1] - (v1-v0)[1] * (v2-v0)[0];
 }
@@ -67,7 +76,13 @@ int main() {
     Model model;
     model.load("../data/cube.obj");
 
-    // Apply model->camera + projection
+    // Prepare relevant buffers
+    int32_t img_width  = 800;
+    int32_t img_height = 600;
+    Depthbuffer depthbuffer(img_width, img_height);
+    Framebuffer framebuffer(img_width, img_height);
+
+    // Geometry processing
     for (uint64_t i = 0; i < model.vertex.size(); i++) {
         model.vertex[i] = proj * model_camera * model.vertex[i];
     }
@@ -77,26 +92,21 @@ int main() {
     // TODO : Maybe if I want to do something cool
     // THOUGHTS : Needs to have data as triangles in this stage
 
-
     // Z-divide
     for (uint64_t i = 0; i < model.vertex.size(); i++) {
         model.vertex[i][0] /= model.vertex[i][3];
         model.vertex[i][1] /= model.vertex[i][3];
         model.vertex[i][2] /= model.vertex[i][3];
-        model.vertex[i][3] = 1/model.vertex[i][3];
+        model.vertex[i][3] = 1/model.vertex[i][3]; // Save 1/z for perspective-correct interpolation
     }
 
     // Change to raster coordinates
-    int32_t img_width  = 800;
-    int32_t img_height = 600;
-    Framebuffer framebuffer(img_width, img_height);
     for (uint64_t i = 0; i < model.vertex.size(); i++) {
         model.vertex[i][0] =  0.5*(model.vertex[i][0] + 1) * (img_width-1);
         model.vertex[i][1] = -0.5*(model.vertex[i][1] - 1) * (img_height-1);
     }
 
     // Rasterise
-    Depthbuffer depthbuffer(img_width, img_height);
     depthbuffer.clear();
     for (uint64_t i = 0; i < model.faces.size(); i++) {
         Eigen::Vector4d v0 = model.vertex[model.faces[i][0]];
