@@ -13,3 +13,4 @@ add_executable(graphics ${SRC_FILES})
 # Set include directories
 target_include_directories(graphics PUBLIC "src/")
 target_include_directories(graphics PUBLIC "lib/")
+target_include_directories(graphics PUBLIC "lib/Eigen")
